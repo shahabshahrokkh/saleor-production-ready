@@ -1,0 +1,25 @@
+FROM node:20-alpine
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+# Copy package files
+COPY package.json pnpm-lock.yaml .npmrc* ./
+
+# Install dependencies
+RUN pnpm i --frozen-lockfile
+
+# Copy source code
+COPY . .
+
+ENV NEXT_TELEMETRY_DISABLED=1
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Run in development mode to avoid build-time API calls
+CMD ["pnpm", "next", "dev", "--hostname", "0.0.0.0"]

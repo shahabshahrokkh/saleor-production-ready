@@ -1,0 +1,24 @@
+FROM node:20-alpine
+
+# Install dependencies for building
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# Enable pnpm
+RUN corepack enable
+
+# Copy package files
+COPY package.json pnpm-lock.yaml .npmrc* ./
+
+# Install dependencies
+RUN pnpm i --frozen-lockfile
+
+# Copy source code
+COPY . .
+
+# Expose port
+EXPOSE 9001
+
+# Start development server
+CMD ["pnpm", "dev", "--host", "0.0.0.0", "--port", "9001"]

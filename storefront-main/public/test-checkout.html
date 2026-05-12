@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Checkout API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Test Checkout API Connection</h1>
+
+    <div>
+        <button onclick="testCheckout()">Test Checkout Query</button>
+        <button onclick="testSimpleQuery()">Test Simple Query (Shop Name)</button>
+    </div>
+
+    <h2>Result:</h2>
+    <pre id="result">Click a button to test...</pre>
+
+    <script>
+        const CHECKOUT_ID = 'Q2hlY2tvdXQ6ODY2MTcwYjQtMDJlYy00NGIwLTk0YTAtZmJkOGE5ZmU5ODJl';
+        const API_URL = 'http://localhost:8000/graphql/';
+
+        async function testCheckout() {
+            const result = document.getElementById('result');
+            result.textContent = 'Testing checkout query...';
+
+            const query = `
+                query checkout($id: ID!) {
+                    checkout(id: $id) {
+                        id
+                        email
+                        lines {
+                            id
+                            quantity
+                            variant {
+                                id
+                                name
+                            }
+                        }
+                    }
+                }
+            `;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query,
+                        variables: { id: CHECKOUT_ID }
+                    })
+                });
+
+                const data = await response.json();
+                result.className = response.ok ? 'success' : 'error';
+                result.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = 'Error: ' + error.message + '\\n\\nThis might be a CORS issue or network problem.';
+            }
+        }
+
+        async function testSimpleQuery() {
+            const result = document.getElementById('result');
+            result.textContent = 'Testing simple query...';
+
+            const query = `{ shop { name } }`;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query })
+                });
+
+                const data = await response.json();
+                result.className = response.ok ? 'success' : 'error';
+                result.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = 'Error: ' + error.message + '\\n\\nThis might be a CORS issue or network problem.';
+            }
+        }
+    </script>
+</body>
+</html>

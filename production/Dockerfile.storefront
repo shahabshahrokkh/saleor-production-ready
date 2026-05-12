@@ -1,0 +1,52 @@
+FROM node:20-alpine AS builder
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+# Copy only dependency files first for better layer caching
+COPY storefront-main/package.json storefront-main/pnpm-lock.yaml storefront-main/.npmrc* ./
+RUN pnpm i --frozen-lockfile
+
+# Copy source (node_modules excluded via .dockerignore)
+COPY storefront-main/src ./src
+COPY storefront-main/public ./public
+COPY storefront-main/next.config.js storefront-main/tsconfig.json ./
+COPY storefront-main/postcss.config.cjs storefront-main/tailwind.config.cjs ./
+COPY storefront-main/global.d.ts* ./
+
+ENV NEXT_OUTPUT=standalone
+ENV NEXT_TELEMETRY_DISABLED=1
+
+ARG NEXT_PUBLIC_SALEOR_API_URL
+ENV NEXT_PUBLIC_SALEOR_API_URL=${NEXT_PUBLIC_SALEOR_API_URL}
+ARG NEXT_PUBLIC_STOREFRONT_URL
+ENV NEXT_PUBLIC_STOREFRONT_URL=${NEXT_PUBLIC_STOREFRONT_URL}
+ARG NEXT_PUBLIC_DEFAULT_CHANNEL
+ENV NEXT_PUBLIC_DEFAULT_CHANNEL=${NEXT_PUBLIC_DEFAULT_CHANNEL}
+
+# Build without running codegen (use pre-generated files in src/gql/)
+RUN pnpm next build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+RUN mkdir .next && chown nextjs:nodejs .next
+
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]
